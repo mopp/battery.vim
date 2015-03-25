@@ -5,7 +5,7 @@
 " Modifier:     mopp
 " Description:  Display battery infomation
 " Last Change:  25-03-2015
-" Version:      0.11
+" Version:      0.12
 "=====================================================================================================
 
 if exists('g:loaded_battery_vim')

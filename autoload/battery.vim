@@ -5,7 +5,7 @@
 " Modifier:     mopp
 " Description:  Display battery infomation
 " Last Change:  25-03-2015
-" Version:      0.11
+" Version:      0.12
 "=====================================================================================================
 
 let s:save_cpo = &cpo
@@ -26,21 +26,21 @@ endfunction
 
 
 " Return value : Dictionary
-" |----------------------------------------------------------------------------------------------------|
-" | KEY  (format)               |  VALUE                                                         | Mac |
-" |----------------------------------------------------------------------------------------------|-----|
-" | capacity (%c)               |  Current capacity (mAh or mWh)                                 |     |
-" | rate (%r)                   |  Current rate of charge or discharge                           |     |
-" | battery_status (%b)         |  Battery status (verbose)                                      |  *  |
-" | battery_status_symbol (%s)  |  Battery status: empty means high, `-' means low,              |  *  |
-" |                             |  `!' means critical, and `+' means charging                    |     |
-" | temperature (%d)            |  Temperature (in degrees Celsius)                              |     |
-" | power_source (%l)           |  AC line status (verbose)                                      |  *  |
-" | load_percentage (%p)        |  Battery load percentage                                       |  *  |
-" | minutes (%m)                |  Remaining time (to charge or discharge) in minutes            |  *  |
-" | hours (%h)                  |  Remaining time (to charge or discharge) in hours              |  *  |
-" | remaining_time (%t)         |  Remaining time (to charge or discharge) in the form `h:min'   |  *  |
-" |----------------------------------------------------------------------------------------------|-----|
+" |-----------------------------------------------------------------------------------------------------------|
+" | KEY  (format)               |  VALUE                                                         | Mac | Unix |
+" |----------------------------------------------------------------------------------------------|-----|------|
+" | capacity (%c)               |  Current capacity (mAh or mWh)                                 |     |      |
+" | rate (%r)                   |  Current rate of charge or discharge                           |     |      |
+" | battery_status (%b)         |  Battery status (verbose)                                      |  *  |  *   |
+" | battery_status_symbol (%s)  |  Battery status: high->'h', low->'l', critical->'!'            |  *  |  *   |
+" |                             |  charging->'+', charged->'*'                                   |     |      |
+" | temperature (%d)            |  Temperature (in degrees Celsius)                              |     |      |
+" | power_source (%l)           |  AC line status (verbose)                                      |  *  |  *   |
+" | load_percentage (%p)        |  Battery load percentage                                       |  *  |  *   |
+" | minutes (%m)                |  Remaining time (to charge or discharge) in minutes            |  *  |  *   |
+" | hours (%h)                  |  Remaining time (to charge or discharge) in hours              |  *  |  *   |
+" | remaining_time (%t)         |  Remaining time (to charge or discharge) in the form `h:min'   |  *  |  *   |
+" |-----------------------------------------------------------------------------------------------------------|
 
 
 let s:info_format = {
@@ -70,44 +70,78 @@ function! battery#getBatteryInfo()
         return "Battery.vim not supports Windows :("
     elseif has('mac')
         let r = system('pmset -g ps')
-        let p = matchlist(r,"Currentl\\?y drawing from '\\(AC\\|Battery\\) Power'")
+        let p = matchlist(r, "Currentl\\?y drawing from '\\(AC\\|Battery\\) Power'")
 
         if !empty(p)
             let info['power_source'] = p[1]
         endif
 
-        if match(r,"-InternalBattery-0[ \t]\\+") != -1
-            let info['load_percentage'] = matchlist(r,"\\([0-9]\\{1,3\\}\\)%")[1]
-            if match(r,"; charged") != -1
-                let info['battery_status'] = "charged"
-                let info['battery_status_symbol'] = "*"
-            elseif match(r,"; charging") != -1
-                let info['battery_status'] = "charging"
-                let info['battery_status_symbol'] = "+"
-            elseif info['load_percentage'] < g:battery_load_critical
-                let info['battery_status'] = "critical"
-                let info['battery_status_symbol'] = "!"
-            elseif info['load_percentage'] < g:battery_load_low
-                let info['battery_status'] = "low"
-                let info['battery_status_symbol'] = "l"
-            else
-                let info['battery_status'] = "high"
-                let info['battery_status_symbol'] = "h"
-            endif
+        if match(r, "-InternalBattery-0[ \t]\\+") == -1
+            return info
+        endif
 
-            let time = matchlist(r,"\\(\\([0-9]\\+\\):\\([0-9]\\+\\)\\) remaining")
-            if !empty(time)
-                let info['remaining_time'] = time[1]
-                let h = time[2]
-                let m = time[3]
-                let info['hours'] = h + ((m >= 30) ? 1 : 0)
-                let info['minutes'] = m + h*60
-            endif
+        let info['load_percentage'] = matchlist(r, "\\([0-9]\\{1,3\\}\\)%")[1]
+        if match(r, "; charged") != -1
+            let info['battery_status']        = 'charged'
+            let info['battery_status_symbol'] = '*'
+        elseif match(r, "; charging") != -1
+            let info['battery_status']        = 'charging'
+            let info['battery_status_symbol'] = '+'
+        elseif info['load_percentage'] < g:battery_load_critical
+            let info['battery_status']        = 'critical'
+            let info['battery_status_symbol'] = '!'
+        elseif info['load_percentage'] < g:battery_load_low
+            let info['battery_status']        = 'low'
+            let info['battery_status_symbol'] = 'l'
+        else
+            let info['battery_status']        = 'high'
+            let info['battery_status_symbol'] = 'h'
+        endif
+
+        let time = matchlist(r, "\\(\\([0-9]\\+\\):\\([0-9]\\+\\)\\) remaining")
+        if !empty(time)
+            let info['remaining_time'] = time[1]
+            let h                      = time[2]
+            let m                      = time[3]
+            let info['hours']          = h + ((m >= 30) ? 1 : 0)
+            let info['minutes']        = m + h*60
         endif
     else
+        if executable("acpi") != 1
+            return "Please install acpi command."
+        endif
+
         " Unix
-        "TODO
-        return "Battery.vim not supports Unix :("
+        let info['power_source'] = (match(system('acpi -a'), 'off-line') == -1) ? ('AC') : ('Battery')
+
+        let r = system('acpi -b')
+        let info['load_percentage'] = matchlist(r, '\([0-9]\{1,3\}\)%')[1]
+
+        if match(r, "Charged") != -1
+            let info['battery_status']        = 'charged'
+            let info['battery_status_symbol'] = '*'
+        elseif match(r, "Charging,") != -1
+            let info['battery_status']        = 'charging'
+            let info['battery_status_symbol'] = '+'
+        elseif info['load_percentage'] < g:battery_load_critical
+            let info['battery_status']        = 'critical'
+            let info['battery_status_symbol'] = '!'
+        elseif info['load_percentage'] < g:battery_load_low
+            let info['battery_status']        = 'low'
+            let info['battery_status_symbol'] = 'l'
+        else
+            let info['battery_status']        = 'high'
+            let info['battery_status_symbol'] = 'h'
+        endif
+
+        let time = matchlist(r, '\(\([0-9]\+\):\([0-9]\+\):\([0-9]\+\)\) \(remaining\|until\)')
+        if !empty(time)
+            let info['remaining_time'] = time[1]
+            let h                      = time[2]
+            let m                      = time[3]
+            let info['hours']          = h + ((m >= 30) ? 1 : 0)
+            let info['minutes']        = m + h * 60
+        endif
     endif
 
     return info
