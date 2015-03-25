@@ -1,36 +1,28 @@
 "=====================================================================================================
-" Name: battery.vim
-" Author: mfumi
-" Email: m.fumi760@gmail.com
-" Description: Display battery infomation
-" Last Change: 18-07-2010 
-" Version: 0.11
+" Name:         autoload/battery.vim
+" Author:       mfumi
+" Email:        m.fumi760@gmail.com
+" Modifier:     mopp
+" Description:  Display battery infomation
+" Last Change:  25-03-2015
+" Version:      0.11
+"=====================================================================================================
 
-
-" ----------------------------------------------------------------------------------------------------
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:is_win()
-  return has('win32') || has('win64')
-endfunction
-
-function! s:is_mac()
-	return has('mac') || has('macunix') || system('uname') =~? '^darwin'
-endfunction
 
 function! s:warn(msg)
-		echohl WarningMsg
-		echo a:msg
-		echohl None
+    echohl WarningMsg
+    echo a:msg
+    echohl None
 endfunction
 
 function! s:debug(var,msg)
-	if exists('g:battery_debug') && g:battery_debug > 0
-		let {a:var} = a:msg
-	endif
+    if exists('g:battery_debug') && g:battery_debug > 0
+        let {a:var} = a:msg
+    endif
 endfunction
-" ------------------------------------------------------------------------------------------------------
 
 
 " Return value : Dictionary
@@ -50,97 +42,100 @@ endfunction
 " | remaining_time (%t)         |  Remaining time (to charge or discharge) in the form `h:min'   |  *  |
 " |----------------------------------------------------------------------------------------------|-----|
 
+
+let s:info_format = {
+            \ 'capacity':              '%c',
+            \ 'rate':                  '%r',
+            \ 'power_source':          '%l',
+            \ 'battery_status':        '%b',
+            \ 'battery_status_symbol': '%s',
+            \ 'temperature':           '%d',
+            \ 'load_percentage':       '%p',
+            \ 'minutes':               '%m',
+            \ 'hours':                 '%h',
+            \ 'remaining_time':        '%t'
+            \}
+lockvar s:info_format
+
+
 function! battery#getBatteryInfo()
+    " Init
+    let info = deepcopy(s:info_format)
+    for i in keys(info)
+        let info[i] = 'N/A'
+    endfor
 
-  let info = {
-        \ 'capacity' : 'N/A',
-				\	'rate' : 'N/A',
-        \ 'power_source' : 'N/A',
-        \ 'battery_status' : 'N/A',
-        \ 'battery_status_symbol' : 'N/A',
-        \ 'temperature' : 'N/A',
-        \ 'load_percentage' : 'N/A',
-				\ 'minutes' : 'N/A',
-				\ 'hours' : 'N/A',
-				\ 'remaining_time' : 'N/A'
-				\}
+    if has('win32')
+        " TODO
+        return "Battery.vim not supports Windows :("
+    elseif has('mac')
+        let r = system('pmset -g ps')
+        let p = matchlist(r,"Currentl\\?y drawing from '\\(AC\\|Battery\\) Power'")
 
-	if s:is_win()
-		"TODO
-	elseif s:is_mac()
+        if !empty(p)
+            let info['power_source'] = p[1]
+        endif
 
-		let r = system('pmset -g ps')
-		let p = matchlist(r,"Currentl\\?y drawing from '\\(AC\\|Battery\\) Power'")
-		if !empty(p)
-			let info['power_source'] = p[1]
-		endif
-		if match(r,"-InternalBattery-0[ \t]\\+") != -1
-			let info['load_percentage'] = matchlist(r,"\\([0-9]\\{1,3\\}\\)%")[1]
-			if match(r,"; charged") != -1
-				let info['battery_status'] = "charged"
-				let info['battery_status_symbol'] = "*"
-			elseif match(r,"; charging") != -1
-				let info['battery_status'] = "charging"
-				let info['battery_status_symbol'] = "+"
-			elseif info['load_percentage'] < g:battery_load_critical
-				let info['battery_status'] = "critical"
-				let info['battery_status_symbol'] = "!"
-			elseif info['load_percentage'] < g:battery_load_low
-				let info['battery_status'] = "low"
-				let info['battery_status_symbol'] = "l"
-			else
-				let info['battery_status'] = "high"
-				let info['battery_status_symbol'] = "h"
-			endif
-			let time = matchlist(r,"\\(\\([0-9]\\+\\):\\([0-9]\\+\\)\\) remaining")
-			if !empty(time)
-				let info['remaining_time'] = time[1]
-				let h = time[2]
-				let m = time[3]
-				let info['hours'] = h + ((m >= 30) ? 1 : 0)
-				let info['minutes'] = m + h*60
-			endif
-		endif
+        if match(r,"-InternalBattery-0[ \t]\\+") != -1
+            let info['load_percentage'] = matchlist(r,"\\([0-9]\\{1,3\\}\\)%")[1]
+            if match(r,"; charged") != -1
+                let info['battery_status'] = "charged"
+                let info['battery_status_symbol'] = "*"
+            elseif match(r,"; charging") != -1
+                let info['battery_status'] = "charging"
+                let info['battery_status_symbol'] = "+"
+            elseif info['load_percentage'] < g:battery_load_critical
+                let info['battery_status'] = "critical"
+                let info['battery_status_symbol'] = "!"
+            elseif info['load_percentage'] < g:battery_load_low
+                let info['battery_status'] = "low"
+                let info['battery_status_symbol'] = "l"
+            else
+                let info['battery_status'] = "high"
+                let info['battery_status_symbol'] = "h"
+            endif
 
-	else
-		"TODO
-	endif
+            let time = matchlist(r,"\\(\\([0-9]\\+\\):\\([0-9]\\+\\)\\) remaining")
+            if !empty(time)
+                let info['remaining_time'] = time[1]
+                let h = time[2]
+                let m = time[3]
+                let info['hours'] = h + ((m >= 30) ? 1 : 0)
+                let info['minutes'] = m + h*60
+            endif
+        endif
+    else
+        " Unix
+        "TODO
+        return "Battery.vim not supports Unix :("
+    endif
 
-	return info
+    return info
 endfunction
 
- 
-let s:info_format = {
-			\ 'capacity' : '%c',
-			\	'rate' : '%r',
-			\ 'power_source' : '%l',
-			\ 'battery_status' : '%b',
-			\ 'battery_status_symbol' : '%s',
-			\ 'temperature' : '%d',
-			\ 'load_percentage' : '%p',
-			\ 'minutes' : '%m',
-			\ 'hours' : '%h',
-			\ 'remaining_time' : '%t'
-			\}
+
 
 function! battery#battery(format)
-	let format = a:format
+    let format = a:format
 
-	if !s:is_mac()
-		call s:warn("not supported")
-	else
-		let info = battery#getBatteryInfo()
-		call s:debug('g:battery_debug_info',info)
-		for i in keys(info)
-			if format =~# s:info_format[i]
-				let format = substitute(format,s:info_format[i],info[i],"g")
-			endif
-		endfor
-		return format
-	endif
+    let info = battery#getBatteryInfo()
+    call s:debug('g:battery_debug_info',info)
+
+    " If this plugin runs on not supports OS, battery#getBatteryInfo() returns error message.
+    if type(info) == type('')
+        return info
+    endif
+
+    " Set each parameters by format.
+    for i in keys(info)
+        if format =~# s:info_format[i]
+            let format = substitute(format, s:info_format[i], info[i], "g")
+        endif
+    endfor
+
+    return format
 endfunction
 
-" ----------------------------------------------------------------------------------------------------
+
 let &cpo = s:save_cpo
 unlet s:save_cpo
-

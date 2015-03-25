@@ -1,4 +1,4 @@
-*battery.jax*            
+*battery.jax*
 
 バージョン: 0.11
 作者: mfumi <m.fumi760@gmail.com>
@@ -23,13 +23,13 @@ Changelog           |battery-changelog|
 コマンド                                        *battery-commands*
 
 :Battery                                        *:Battery*
-    バッテリー情報を表示します。 
+    バッテリー情報を表示します。
 
 ==============================================================================
 関数                                            *battery-functions*
 
 battery#getBatteryInfo()
-    バッテリー情報を取得します。戻り値は情報が入った辞書です。   
+    バッテリー情報を取得します。戻り値は情報が入った辞書です。
 
 battery#battery({format})
     フォーマットに従ったバッテリー情報を返します。
@@ -65,7 +65,7 @@ g:battery_status_format
 <
 g:battery_load_low
     バッテリーの残量がlowと判断される数値。デフォルトは25。
-    
+
 g:battery_load_critical
     バッテリーの残量がcriticalと判断される数値。デフォルトは10。
 
@@ -80,4 +80,4 @@ Changelog                                       *battery-changelog*
     -   battery#battery()が値を返すように変更
 
 ==============================================================================
-vim: ft=help ts=4 et 
+vim: ft=help ts=4 et
