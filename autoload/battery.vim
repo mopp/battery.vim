@@ -115,32 +115,34 @@ function! battery#getBatteryInfo()
         let info['power_source'] = (match(system('acpi -a'), 'off-line') == -1) ? ('AC') : ('Battery')
 
         let r = system('acpi -b')
-        let info['load_percentage'] = matchlist(r, '\([0-9]\{1,3\}\)%')[1]
+        if len(r) != 0
+            let info['load_percentage'] = matchlist(r, '\([0-9]\{1,3\}\)%')[1]
 
-        if match(r, "Charged") != -1
-            let info['battery_status']        = 'charged'
-            let info['battery_status_symbol'] = '*'
-        elseif match(r, "Charging,") != -1
-            let info['battery_status']        = 'charging'
-            let info['battery_status_symbol'] = '+'
-        elseif info['load_percentage'] < g:battery_load_critical
-            let info['battery_status']        = 'critical'
-            let info['battery_status_symbol'] = '!'
-        elseif info['load_percentage'] < g:battery_load_low
-            let info['battery_status']        = 'low'
-            let info['battery_status_symbol'] = 'l'
-        else
-            let info['battery_status']        = 'high'
-            let info['battery_status_symbol'] = 'h'
-        endif
+            if match(r, "Charged") != -1
+                let info['battery_status']        = 'charged'
+                let info['battery_status_symbol'] = '*'
+            elseif match(r, "Charging,") != -1
+                let info['battery_status']        = 'charging'
+                let info['battery_status_symbol'] = '+'
+            elseif info['load_percentage'] < g:battery_load_critical
+                let info['battery_status']        = 'critical'
+                let info['battery_status_symbol'] = '!'
+            elseif info['load_percentage'] < g:battery_load_low
+                let info['battery_status']        = 'low'
+                let info['battery_status_symbol'] = 'l'
+            else
+                let info['battery_status']        = 'high'
+                let info['battery_status_symbol'] = 'h'
+            endif
 
-        let time = matchlist(r, '\(\([0-9]\+\):\([0-9]\+\):\([0-9]\+\)\) \(remaining\|until\)')
-        if !empty(time)
-            let info['remaining_time'] = time[1]
-            let h                      = time[2]
-            let m                      = time[3]
-            let info['hours']          = h + ((m >= 30) ? 1 : 0)
-            let info['minutes']        = m + h * 60
+            let time = matchlist(r, '\(\([0-9]\+\):\([0-9]\+\):\([0-9]\+\)\) \(remaining\|until\)')
+            if !empty(time)
+                let info['remaining_time'] = time[1]
+                let h                      = time[2]
+                let m                      = time[3]
+                let info['hours']          = h + ((m >= 30) ? 1 : 0)
+                let info['minutes']        = m + h * 60
+            endif
         endif
     endif
 
